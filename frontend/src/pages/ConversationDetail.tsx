@@ -142,6 +142,11 @@ export default function ConversationDetail() {
 
     // Block status
     const [fetchedBlockStatus, setBlockStatus] = useState<{ iBlockedThem: boolean; theyBlockedMe: boolean }>({ iBlockedThem: false, theyBlockedMe: false })
+    
+    // Pagination state
+    const [page, setPage] = useState(1)
+    const [hasMore, setHasMore] = useState(true)
+    const [isLoadingMore, setIsLoadingMore] = useState(false)
     // When receiver is absent or a bot, always treat block status as cleared so we
     // don't have to call setState synchronously inside the effect (which triggers
     // cascading renders and violates react-hooks/set-state-in-effect).
@@ -229,6 +234,30 @@ export default function ConversationDetail() {
         })
     }, [])
 
+    const handleScroll = useCallback(async (e: React.UIEvent<HTMLDivElement>) => {
+        const target = e.target as HTMLDivElement
+        if (target.scrollTop === 0 && hasMore && !isLoadingMore && !isChatLoading && id) {
+            setIsLoadingMore(true)
+            const nextPage = page + 1
+            try {
+                const prevHeight = target.scrollHeight
+                const { messages: olderMsgs, hasMore: more } = await messageApi.list(id, nextPage, 50) as { messages: Message[], hasMore: boolean }
+                setHasMore(more)
+                if (olderMsgs.length > 0) {
+                    setMessageList((prev) => [...olderMsgs, ...prev])
+                    setPage(nextPage)
+                    requestAnimationFrame(() => {
+                        target.scrollTop = target.scrollHeight - prevHeight
+                    })
+                }
+            } catch {
+                toast.error("Failed to load older messages")
+            } finally {
+                setIsLoadingMore(false)
+            }
+        }
+    }, [hasMore, isLoadingMore, isChatLoading, id, page, setMessageList])
+
     // ── load conversation + messages ────────────────────────────────────
     useEffect(() => {
         if (!id || !user) return
@@ -240,12 +269,15 @@ export default function ConversationDetail() {
         isInitialLoadRef.current = true
         hasInitiallyScrolledRef.current = false
         prevMessageCountRef.current = 0
+        setPage(1)
+        setHasMore(true)
 
         Promise.all([
             conversationApi.get<Conversation>(id),
-            messageApi.list(id) as Promise<Message[]>,
+            messageApi.list(id, 1, 50) as Promise<{ messages: Message[], hasMore: boolean }>,
         ])
-            .then(([conv, msgs]) => {
+            .then(([conv, { messages: msgs, hasMore: more }]) => {
+                setHasMore(more)
                 const other = conv.members.find((m: User) => m._id !== user._id)
                 setReceiver(other ?? null)
                 // Apply any messages-seen events that arrived before the list was ready
@@ -594,8 +626,15 @@ export default function ConversationDetail() {
             {/* Messages */}
             <div
                 ref={scrollAreaRef}
+                onScroll={handleScroll}
                 className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5"
             >
+                {isLoadingMore && (
+                    <div className="py-2 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                        <span className="size-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        Loading older messages...
+                    </div>
+                )}
                 {isChatLoading ? (
                     <MessagesSkeleton />
                 ) : messageList.length === 0 ? (

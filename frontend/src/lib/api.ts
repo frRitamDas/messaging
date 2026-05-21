@@ -141,8 +141,8 @@ export const conversationApi = {
 /* ─── messages ─────────────────────────────────────────────────────────── */
 
 export const messageApi = {
-    list: (conversationId: string) =>
-        fetch(`${API_BASE}/message/${conversationId}`, {
+    list: (conversationId: string, page: number = 1, limit: number = 50) =>
+        fetch(`${API_BASE}/message/${conversationId}?page=${page}&limit=${limit}`, {
             headers: headers(),
         }).then(handleResponse),
 
