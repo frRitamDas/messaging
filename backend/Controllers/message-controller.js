@@ -33,12 +33,21 @@ const allMessage = async (req, res) => {
       { $push: { seenBy: { user: req.user.id, seenAt: new Date() } } }
     );
 
-    const messages = await Message.find({
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+
+    const messagesRaw = await Message.find({
       conversationId: req.params.id,
       hiddenFrom: { $ne: req.user.id },
     })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .populate('replyTo', 'text imageUrl senderId softDeleted')
       .lean();
+
+    const messages = messagesRaw.reverse();
 
     // Sanitize soft-deleted messages before sending to client:
     // replace content with tombstone text so the real content
@@ -52,7 +61,8 @@ const allMessage = async (req, res) => {
       };
     });
 
-    res.json(sanitized);
+    const hasMore = messagesRaw.length === limit;
+    res.json({ messages: sanitized, hasMore, page });
   } catch (error) {
     console.error(error.message);
     res.status(500).send("Internal Server Error");
