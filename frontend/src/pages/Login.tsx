@@ -47,6 +47,7 @@ const spotlights = [
 export default function Login() {
     const navigate = useNavigate()
     const { login, loginWithOtp, user } = useAuth()
+    const demoMode = import.meta.env.VITE_DEMO_MODE === "true"
 
     // ── password tab ──────────────────────────────────────────────────
     const [pwEmail, setPwEmail] = useState("")
@@ -196,6 +197,27 @@ export default function Login() {
                             </p>
                         </div>
                     </div>
+
+                    {demoMode && (
+                        <div className="w-full rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+                            <div className="font-semibold text-foreground">Demo access</div>
+                            <p className="mt-1 text-muted-foreground">Explore the interface with the demo account. Messaging and account data are not connected to a live backend yet.</p>
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                                <div className="text-xs">
+                                    <div><span className="text-muted-foreground">Email:</span> <span className="font-medium">demo@gmail.com</span></div>
+                                    <div><span className="text-muted-foreground">Password:</span> <span className="font-medium">demo123</span></div>
+                                </div>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() => { setPwEmail("demo@gmail.com"); setPassword("demo123") }}
+                                >
+                                    Use demo account
+                                </Button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Form card */}
                     <Card className="rounded-2xl border border-border/60 bg-card shadow-xl shadow-black/5 dark:shadow-black/25 p-6">
